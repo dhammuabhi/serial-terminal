@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds serial-terminal_1.0.0_all.deb from serial_terminal.py
+# Builds serial-terminal_1.1.0_all.deb from serial_terminal.py
 
 set -e
 
@@ -24,7 +24,7 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-VER=1.0.0
+VER=1.1.0
 PKG=build/serial-terminal_${VER}_all
 
 echo "Creating package structure..."
@@ -34,6 +34,16 @@ mkdir -p $PKG/DEBIAN $PKG/usr/lib/serial-terminal $PKG/usr/bin \
 
 echo "Installing main application..."
 install -m 755 serial_terminal.py $PKG/usr/lib/serial-terminal/serial_terminal.py
+
+# Install icon files for the application to use
+for size in 16 32 64 128 256; do
+  if [ -f icon_${size}.png ]; then
+    install -m 644 icon_${size}.png $PKG/usr/lib/serial-terminal/icon_${size}.png
+  fi
+done
+if [ -f icon.ico ]; then
+  install -m 644 icon.ico $PKG/usr/lib/serial-terminal/icon.ico
+fi
 
 cat > $PKG/usr/bin/serial-terminal <<'EOS'
 #!/bin/sh

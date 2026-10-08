@@ -15,7 +15,7 @@ import serial
 import serial.tools.list_ports
 
 APP_NAME = "Serial Terminal"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.0.0"
 APP_BUILD_DATE = "October 7, 2026"
 
 IS_WINDOWS = sys.platform.startswith("win")
@@ -142,9 +142,6 @@ class TerminalWindow:
         self.win.title(f"{APP_NAME} v{APP_VERSION} - disconnected")
         self.win.geometry("900x560")
         self.win.protocol("WM_DELETE_WINDOW", self.close)
-        
-        # Set window icon (taskbar and window decoration)
-        self._set_window_icon()
 
         self.v_port = tk.StringVar(value="")
         self.v_baud = tk.StringVar(value="115200")
@@ -177,29 +174,6 @@ class TerminalWindow:
         self.refresh_ports()
         self._setup_keybindings()
         self.win.after(20, self._poll)
-
-    def _set_window_icon(self):
-        """Set the application icon for the window and taskbar."""
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Try to set icon - use platform-specific approach
-        if IS_WINDOWS:
-            # Windows: use iconbitmap with ICO file
-            icon_path = os.path.join(base_dir, "icon.ico")
-            if icon_path and os.path.isfile(icon_path):
-                try:
-                    self.win.iconbitmap(icon_path)
-                except (tk.TclError, OSError):
-                    pass
-        else:
-            # Linux/Mac: use PhotoImage with PNG (works better for taskbar)
-            icon_path = os.path.join(base_dir, "icon_256.png")
-            if icon_path and os.path.isfile(icon_path):
-                try:
-                    icon_image = tk.PhotoImage(file=icon_path)
-                    self.win.iconphoto(False, icon_image)
-                except (tk.TclError, OSError):
-                    pass
 
     # ---------- persistent settings ----------
     def _load_persisted(self):
@@ -318,124 +292,8 @@ class TerminalWindow:
         self.text.bind("<Alt-F4>", lambda e: (self.close(), "break")[1])
 
     def _new_connection(self):
-        """Open interactive COM port selection dialog with keyboard navigation."""
-        # Get available ports
-        ports = list_ports()
-        if not ports:
-            messagebox.showwarning("No Ports Available", 
-                                 "No serial ports found.", parent=self.win)
-            return
-        
-        # Create selection dialog
-        dlg = tk.Toplevel(self.win)
-        dlg.title("Select COM Port")
-        dlg.transient(self.win)
-        dlg.resizable(False, False)
-        dlg.geometry("300x250")
-        
-        # Frame for port selection
-        frame = ttk.Frame(dlg, padding=12)
-        frame.pack(fill="both", expand=True)
-        
-        ttk.Label(frame, text="Available COM Ports:", font=("", 10, "bold")).pack(anchor="w", pady=(0, 8))
-        
-        # Listbox for ports
-        listbox = tk.Listbox(frame, height=10, font=(MONO_FONT, 11), 
-                            bg="black", fg="#d0d0d0", selectmode="single")
-        listbox.pack(fill="both", expand=True, pady=(0, 8))
-        
-        # Add ports to listbox
-        for port in ports:
-            listbox.insert("end", port)
-        
-        # Select first port by default
-        current_index = 0
-        current_port = self.v_port.get()
-        if current_port in ports:
-            current_index = ports.index(current_port)
-        listbox.selection_set(current_index)
-        listbox.see(current_index)
-        
-        # Status label
-        status_var = tk.StringVar(value="↑↓ Navigate | Enter to Connect | Esc to Cancel")
-        ttk.Label(frame, textvariable=status_var, foreground="gray", font=("", 9)).pack(anchor="w")
-        
-        result = {"connected": False}
-        
-        def on_enter():
-            """Connect to selected port."""
-            selection = listbox.curselection()
-            if selection:
-                selected_port = ports[selection[0]]
-                current_port = self.v_port.get()
-                
-                # Check if we're switching ports
-                if current_port and current_port != selected_port and self.ser:
-                    # Disconnect from current port first
-                    self.disconnect()
-                
-                self.v_port.set(selected_port)
-                result["connected"] = True
-                dlg.destroy()
-                self.connect()
-        
-        def on_key(e):
-            """Handle keyboard navigation."""
-            selection = listbox.curselection()
-            if not selection:
-                listbox.selection_set(0)
-                listbox.see(0)
-                return "break"
-            
-            current = selection[0]
-            
-            if e.keysym == "Up":
-                if current > 0:
-                    listbox.selection_clear(current)
-                    listbox.selection_set(current - 1)
-                    listbox.see(current - 1)
-                return "break"
-            elif e.keysym == "Down":
-                if current < len(ports) - 1:
-                    listbox.selection_clear(current)
-                    listbox.selection_set(current + 1)
-                    listbox.see(current + 1)
-                return "break"
-            elif e.keysym == "Return":
-                on_enter()
-                return "break"
-            elif e.keysym == "Escape":
-                dlg.destroy()
-                return "break"
-        
-        # Bind keys
-        dlg.bind("<Up>", on_key)
-        dlg.bind("<Down>", on_key)
-        dlg.bind("<Return>", on_key)
-        dlg.bind("<Escape>", on_key)
-        listbox.bind("<Up>", on_key)
-        listbox.bind("<Down>", on_key)
-        listbox.bind("<Return>", on_key)
-        listbox.bind("<Escape>", on_key)
-        
-        # Double-click to connect
-        def on_double_click(e):
-            on_enter()
-        
-        listbox.bind("<Double-Button-1>", on_double_click)
-        
-        # Buttons
-        btn_frame = ttk.Frame(frame)
-        btn_frame.pack(fill="x", pady=(8, 0))
-        
-        ttk.Button(btn_frame, text="Connect", command=on_enter).pack(side="left", padx=4)
-        ttk.Button(btn_frame, text="Cancel", command=dlg.destroy).pack(side="left", padx=4)
-        
-        # Set focus to listbox
-        listbox.focus_set()
-        
-        dlg.wait_window()
-
+        """Open connection dialog to select another COM port."""
+        self.open_port_settings()
 
     def _toggle_maximize(self):
         """Toggle between maximized and normal window state."""
@@ -809,11 +667,13 @@ class TerminalWindow:
             return False
 
     def on_key(self, e):
-        # Check for Alt key combinations
-        # Alt key state can be 0x8, 0x20000, 0x80000, or 0x100000 depending on system/window manager
-        alt_pressed = (e.state & 0x8) or (e.state & 0x20000) or (e.state & 0x80000) or (e.state & 0x100000)
+        # DEBUG: Print key state for Alt key testing
+        # Uncomment the next line to debug key state values
+        # if e.state & 0x8 or e.state & 0x20000 or True:
+        #     print(f"Key: {e.keysym}, State: {e.state:08b} ({e.state}), Char: {repr(e.char)}")
         
-        if alt_pressed and e.keysym.lower() in ("i", "n", "q", "d", "z", "m"):
+        # Check for Alt key combinations (Alt has state 0x8 or 0x20000 depending on system)
+        if (e.state & 0x8 or e.state & 0x20000) and e.keysym.lower() in ("i", "n", "q", "d", "z", "m"):
             key_map = {
                 "i": self.disconnect,
                 "n": self._new_connection,
@@ -953,24 +813,5 @@ def quit_all():
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()
-    
-    # Set root window icon (will be inherited by child windows)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    if IS_WINDOWS:
-        icon_path = os.path.join(base_dir, "icon.ico")
-        if icon_path and os.path.isfile(icon_path):
-            try:
-                root.iconbitmap(icon_path)
-            except (tk.TclError, OSError):
-                pass
-    else:
-        icon_path = os.path.join(base_dir, "icon_256.png")
-        if icon_path and os.path.isfile(icon_path):
-            try:
-                icon_image = tk.PhotoImage(file=icon_path)
-                root.iconphoto(False, icon_image)
-            except (tk.TclError, OSError):
-                pass
-    
     TerminalWindow(root)
     root.mainloop()

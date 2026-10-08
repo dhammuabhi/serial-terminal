@@ -28,7 +28,7 @@ echo.
 echo Building Serial Terminal executable...
 python -m PyInstaller --noconfirm --onefile --windowed ^
     --name SerialTerminal ^
-    --icon=NONE ^
+    --icon=icon.ico ^
     serial_terminal.py
 if errorlevel 1 goto :err
 
